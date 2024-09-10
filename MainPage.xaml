@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Horizon.MainPage"
+             x:Name="Main"
+             xmlns:mpvwm="clr-namespace:Horizon.MainPageViewModel">
+
+    <ContentPage.Content>
+        <CollectionView
+            x:Name="CollectionView">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <FlexLayout Wrap="Wrap" JustifyContent="SpaceAround">
+                        <Grid WidthRequest="100" HeightRequest="100">
+                            <Label
+                                Text="{Binding AppName}" 
+                                VerticalOptions="Center" 
+                                
+                            x:Name="texto"/>
+                            <Image Source="{Binding AppIcon}" WidthRequest="50" HeightRequest="50"/>
+
+                        </Grid>
+
+                        </FlexLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </ContentPage.Content>
+</ContentPage>
