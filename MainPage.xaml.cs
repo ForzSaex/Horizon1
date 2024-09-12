@@ -9,10 +9,12 @@ namespace Horizon
     {
         public MainPage()
         {
+#if ANDROID
             InitializeComponent();
             MainPageViewModel.MainPageViewModel mainPageViewModel = new MainPageViewModel.MainPageViewModel();
             BindingContext = mainPageViewModel;
             CollectionView.ItemsSource = mainPageViewModel.Apps;
+#endif
         }
     }
 }

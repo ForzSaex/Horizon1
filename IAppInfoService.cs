@@ -1,4 +1,6 @@
-﻿using Android.Graphics.Drawables;
+﻿#if ANDROID
+using Android.Graphics.Drawables;
+#endif
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace Horizon
 {
+#if ANDROID
     public interface IAppInfoService
     {
         List<AppInfoModel> GetInstalledApps();
@@ -16,6 +19,7 @@ namespace Horizon
     {
         public string AppName { get; set; }
         public string PackageName { get; set; }
-        public Drawable AppIcon { get; set; }
+        public ImageSource AppIcon { get; set; }
     }
+#endif
 }

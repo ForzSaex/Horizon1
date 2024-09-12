@@ -1,8 +1,10 @@
-﻿using Android.Graphics.Drawables;
+﻿#if ANDROID
+using Android.Graphics.Drawables;
 using Android.Content.PM;
-
 using Microsoft.Maui.ApplicationModel;
+using AndroidX.Core.Graphics.Drawable;
 using Android.Graphics;
+#endif
 using Microsoft.Maui.Controls.Shapes;
 using System;
 using System.Collections.Generic;
@@ -15,6 +17,7 @@ using System.Threading.Tasks;
 using Microsoft.Maui.Controls.PlatformConfiguration;
 using System.ComponentModel;
 
+#if ANDROID
 namespace Horizon.MainPageViewModel
 {
     internal class MainPageViewModel
@@ -24,8 +27,19 @@ namespace Horizon.MainPageViewModel
         public MainPageViewModel()
         {
 
-            
-            var pm = Android.App.Application.Context.PackageManager;
+                HashSet<string> allowedApps = new HashSet<string>
+                {
+                    "Calendário", "Câmera", "Chrome", "Contatos", "Facebook", "Galaxy Store",
+                    "Galaxy Themes", "Galeria", "Gmail", "Google", "Google Play Store", "Maps",
+                    "Meet", "Meus Arquivos", "OneDrive", "Relógio", "Telefone", "Youtube"
+                };
+
+                HashSet<string> filteredApps = new HashSet<string>
+                {
+                    "Centro de conteúdo de teclado", "CoolEUKor", "ChocoEUKo", "Horizon",
+                    "MyTube edge", "Recent Files", "Samsung Editing Assets", "SamsungSans, Calculator Panel, Calendar"
+                };
+        var pm = Android.App.Application.Context.PackageManager;
             var apps = pm.GetInstalledApplications(PackageInfoFlags.MatchAll);
             var userApps = new List<AppInfoModel>();
 
@@ -38,11 +52,28 @@ namespace Horizon.MainPageViewModel
                     {
                         AppName = packageInfo.LoadLabel(pm),
                         PackageName = packageInfo.PackageName,
-                        AppIcon = packageInfo.LoadIcon(pm)
+                        AppIcon = DrawableImageSource.ConvertDrawableToImageSource(packageInfo.LoadIcon(pm))
+                    };
+                    if (!filteredApps.Contains(packageInfo.LoadLabel(pm)))
+                    {
+                        userApps.Add(appInfo);
+                    }
+                    
+                    
+                }
+                else if (allowedApps.Contains(packageInfo.LoadLabel(pm)))
+                {
+                    var appInfo = new AppInfoModel
+                    {
+                        AppName = packageInfo.LoadLabel(pm),
+                        PackageName = packageInfo.PackageName,
+                        AppIcon = DrawableImageSource.ConvertDrawableToImageSource(packageInfo.LoadIcon(pm))
                     };
                     userApps.Add(appInfo);
                 }
             }
+
+            userApps = userApps.OrderBy(app => app.AppName).ToList();
 
             // Exibe os aplicativos filtrados
             foreach (var app in userApps)
@@ -51,46 +82,22 @@ namespace Horizon.MainPageViewModel
                 {
                     AppName = app.AppName,
                     PackageName = app.PackageName,
-                    AppIcon = ConvertDrawableToImageSource(app.AppIcon),
+                    AppIcon = app.AppIcon,
+                    openapp = new Command(() =>
+                    {
+                        var launchIntent = Android.App.Application.Context.PackageManager.GetLaunchIntentForPackage(app.PackageName);
+                        if (launchIntent != null)
+                        {
+                            Android.App.Application.Context.StartActivity(launchIntent);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Não foi possível abrir o aplicativo: {app.AppName}");
+                        }
+                    }),
                 });
-
-                // Checagem de depuração
-                Console.WriteLine($"Adicionando: {app.AppName} - {app.PackageName} - {app.AppIcon}");
-
-                /*
-                // Se desejar abrir o aplicativo
-                var launchIntent = pm.GetLaunchIntentForPackage(app.PackageName);
-                if (launchIntent != null)
-                {
-                    // Inicia o aplicativo
-                    Android.App.Application.Context.StartActivity(launchIntent);
-                }
-                else
-                {
-                    Console.WriteLine($"Não foi possível abrir o aplicativo: {app.AppName}");
-                }
-                */
-
-               
             }
-            Console.WriteLine($"Total de apps: {Apps.Count()}");
         }
-
-        public ImageSource ConvertDrawableToImageSource(Drawable drawable)
-        {
-            if (drawable is BitmapDrawable bitmapDrawable)
-            {
-                var bitmap = bitmapDrawable.Bitmap;
-                var stream = new MemoryStream();
-                bitmap.Compress(Android.Graphics.Bitmap.CompressFormat.Png, 100, stream);
-                stream.Seek(0, SeekOrigin.Begin);
-                return ImageSource.FromStream(() => stream);
-            }
-            return null;
-        }
-
-
-
 
     }
     public class Layout
@@ -115,6 +122,44 @@ namespace Horizon.MainPageViewModel
         public string AppName { get; set; }
         public string PackageName { get; set; }
         public ImageSource AppIcon { get; set; }
+        public Command openapp { get; set; }
 
     }
+    public class DrawableImageSource
+    {
+        public static ImageSource ConvertDrawableToImageSource(Drawable drawable)
+        {
+            if (drawable is AdaptiveIconDrawable adaptiveIcon)
+            {
+                // Crie um Bitmap com as dimensões do ícone
+                var bitmap = Android.Graphics.Bitmap.CreateBitmap(100, 100, Android.Graphics.Bitmap.Config.Argb8888);
+                var canvas = new Canvas(bitmap);
+
+                // Desenhe o AdaptiveIconDrawable no Canvas
+                adaptiveIcon.SetBounds(0, 0, canvas.Width, canvas.Height);
+                adaptiveIcon.Draw(canvas);
+
+                // Converta o Bitmap para um StreamImageSource para ser usado no MAUI Image
+                return ImageSource.FromStream(() =>
+                {
+                    var ms = new MemoryStream();
+                    bitmap.Compress(Android.Graphics.Bitmap.CompressFormat.Png, 100, ms);
+                    ms.Seek(0, SeekOrigin.Begin);
+                    return ms;
+                });
+            }
+            else if (drawable is BitmapDrawable bitmapDrawable)
+            {
+                var bitmap = bitmapDrawable.Bitmap;
+                var stream = new MemoryStream();
+                bitmap.Compress(Android.Graphics.Bitmap.CompressFormat.Png, 100, stream);
+                stream.Seek(0, SeekOrigin.Begin);
+
+                // Retorna o ImageSource diretamente a partir do stream
+                return ImageSource.FromStream(() => new MemoryStream(stream.ToArray()));
+            }
+            return null;
+        }
+    }
 }
+#endif

@@ -2,26 +2,21 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Horizon.MainPage"
-             x:Name="Main"
-             xmlns:mpvwm="clr-namespace:Horizon.MainPageViewModel">
+             x:Name="Main">
 
     <ContentPage.Content>
         <CollectionView
-            x:Name="CollectionView">
+            x:Name="CollectionView"
+            ItemsLayout="HorizontalGrid, 7"
+            >
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <FlexLayout Wrap="Wrap" JustifyContent="SpaceAround">
-                        <Grid WidthRequest="100" HeightRequest="100">
-                            <Label
-                                Text="{Binding AppName}" 
-                                VerticalOptions="Center" 
-                                
-                            x:Name="texto"/>
-                            <Image Source="{Binding AppIcon}" WidthRequest="50" HeightRequest="50"/>
-
-                        </Grid>
-
-                        </FlexLayout>
+                    <Grid WidthRequest="100" HeightRequest="100" Background="Transparent" Margin="5">
+                        <ImageButton Source="{Binding AppIcon}" WidthRequest="50" HeightRequest="50" Command="{Binding openapp}"/>
+                        <Label Text="{Binding AppName}" 
+                               VerticalOptions="End"
+                               HorizontalOptions="Center"/>
+                    </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
