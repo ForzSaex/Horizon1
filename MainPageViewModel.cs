@@ -5,7 +5,6 @@ using Microsoft.Maui.ApplicationModel;
 using AndroidX.Core.Graphics.Drawable;
 using Android.Graphics;
 #endif
-using Microsoft.Maui.Controls.Shapes;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,88 +13,130 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Maui.Controls.PlatformConfiguration;
 using System.ComponentModel;
+using System.Text.Json;
+using System.Diagnostics;
 
 #if ANDROID
 namespace Horizon.MainPageViewModel
 {
     internal class MainPageViewModel
     {
-        public ObservableCollection<ListApp> Apps { get; set; } = new ObservableCollection<ListApp>();
+        private Dictionary<string, ImageSource> iconCache = new Dictionary<string, ImageSource>();
+        private string cacheDirectory;
+        public List<ListApp> userApps = new List<ListApp>();
+        private const string AppsKey = "SavedApps";
 
         public MainPageViewModel()
         {
 
-                HashSet<string> allowedApps = new HashSet<string>
+        cacheDirectory = System.IO.Path.Combine(FileSystem.AppDataDirectory, "AppIcons");
+        if (!Directory.Exists(cacheDirectory))
+        {
+            Directory.CreateDirectory(cacheDirectory);
+        }
+
+    HashSet<string> allowedApps = new HashSet<string>
                 {
                     "Calendário", "Câmera", "Chrome", "Contatos", "Facebook", "Galaxy Store",
                     "Galaxy Themes", "Galeria", "Gmail", "Google", "Google Play Store", "Maps",
                     "Meet", "Meus Arquivos", "OneDrive", "Relógio", "Telefone", "Youtube"
                 };
 
-                HashSet<string> filteredApps = new HashSet<string>
+        HashSet<string> filteredApps = new HashSet<string>
                 {
                     "Centro de conteúdo de teclado", "CoolEUKor", "ChocoEUKo", "Horizon",
                     "MyTube edge", "Recent Files", "Samsung Editing Assets", "SamsungSans, Calculator Panel, Calendar"
                 };
         var pm = Android.App.Application.Context.PackageManager;
             var apps = pm.GetInstalledApplications(PackageInfoFlags.MatchAll);
-            var userApps = new List<AppInfoModel>();
-
-            foreach (var packageInfo in apps)
+            try
             {
-                // Filtra aplicativos do sistema
-                if ((packageInfo.Flags & ApplicationInfoFlags.System) == 0)
+
+                if (Preferences.Get(AppsKey,string.Empty) != string.Empty)
                 {
-                    var appInfo = new AppInfoModel
+                    var savedAppsJson = Preferences.Get(AppsKey, string.Empty);
+                    List<ListApp>? savedApps = JsonSerializer.Deserialize<List<ListApp>>(savedAppsJson);
+                    if (savedApps != null)
                     {
-                        AppName = packageInfo.LoadLabel(pm),
-                        PackageName = packageInfo.PackageName,
-                        AppIcon = DrawableImageSource.ConvertDrawableToImageSource(packageInfo.LoadIcon(pm))
-                    };
-                    if (!filteredApps.Contains(packageInfo.LoadLabel(pm)))
-                    {
-                        userApps.Add(appInfo);
+                        foreach (var app in savedApps)
+                        {
+                            userApps.Add(app);
+                        }
+                        savedApps = null;
                     }
-                    
-                    
                 }
-                else if (allowedApps.Contains(packageInfo.LoadLabel(pm)))
+                else
                 {
-                    var appInfo = new AppInfoModel
-                    {
-                        AppName = packageInfo.LoadLabel(pm),
-                        PackageName = packageInfo.PackageName,
-                        AppIcon = DrawableImageSource.ConvertDrawableToImageSource(packageInfo.LoadIcon(pm))
-                    };
-                    userApps.Add(appInfo);
+                    // Se não houver apps salvos, carrega os apps instalados
+                    LoadInstalledApps();
                 }
             }
-
-            userApps = userApps.OrderBy(app => app.AppName).ToList();
-
-            // Exibe os aplicativos filtrados
-            foreach (var app in userApps)
+            catch(Exception ex)
             {
-                Apps.Add(new ListApp
+            Shell.Current.DisplayAlert("Error",ex.ToString(),"Ok");
+            }
+            void LoadInstalledApps()
+            {
+                foreach (var packageInfo in apps)
                 {
-                    AppName = app.AppName,
-                    PackageName = app.PackageName,
-                    AppIcon = app.AppIcon,
-                    openapp = new Command(() =>
+                    // Filtra aplicativos do sistema
+                    if (((packageInfo.Flags & ApplicationInfoFlags.System) == 0 && !filteredApps.Contains(packageInfo.LoadLabel(pm))) || allowedApps.Contains(packageInfo.LoadLabel(pm)))
                     {
-                        var launchIntent = Android.App.Application.Context.PackageManager.GetLaunchIntentForPackage(app.PackageName);
-                        if (launchIntent != null)
+                        ImageSource appIcon = LoadIconFromCache(packageInfo.PackageName);
+                        if (appIcon == null)
                         {
-                            Android.App.Application.Context.StartActivity(launchIntent);
+                            var drawableIcon = packageInfo.LoadIcon(pm);
+                            appIcon = DrawableImageSource.ConvertDrawableToImageSource(drawableIcon);
+
+                            // Salva o ícone no cache de arquivos para uso futuro
+                            SaveIconToCache(packageInfo.PackageName, drawableIcon);
                         }
-                        else
+                        var appInfo = new ListApp
                         {
-                            Console.WriteLine($"Não foi possível abrir o aplicativo: {app.AppName}");
-                        }
-                    }),
-                });
+                            AppName = packageInfo.LoadLabel(pm),
+                            PackageName = packageInfo.PackageName,
+                            AppIcon = appIcon,
+                            openapp = new Command(() =>
+                            {
+                                var launchIntent = Android.App.Application.Context.PackageManager.GetLaunchIntentForPackage(packageInfo.PackageName);
+                                if (launchIntent != null)
+                                {
+                                    Android.App.Application.Context.StartActivity(launchIntent);
+                                }
+                            }),
+                        };
+                        userApps.Add(appInfo);
+                    }
+                }
+                userApps = userApps.OrderBy(app => app.AppName).ToList();
+                var appsJson = JsonSerializer.Serialize(userApps);
+                Preferences.Set(AppsKey, appsJson);
+            }
+            
+
+            ImageSource LoadIconFromCache(string packageName)
+            {
+                var filePath = System.IO.Path.Combine(cacheDirectory, $"{packageName}.png");
+
+                if (File.Exists(filePath))
+                {
+                    return ImageSource.FromFile(filePath);
+                }
+
+                return null;
+            }
+            void SaveIconToCache(string packageName, Android.Graphics.Drawables.Drawable drawable)
+            {
+                var filePath = System.IO.Path.Combine(cacheDirectory, $"{packageName}.png");
+
+                if (drawable is BitmapDrawable bitmapDrawable)
+                {
+                    using (var outputStream = File.Create(filePath))
+                    {
+                        bitmapDrawable.Bitmap.Compress(Android.Graphics.Bitmap.CompressFormat.Png, 100, outputStream);
+                    }
+                }
             }
         }
 
@@ -107,7 +148,7 @@ namespace Horizon.MainPageViewModel
         public static AbsoluteLayout absoluteLayout { get; set; }
         public static Grid Menu { get; set; }
     }
-    public class Preferences
+    public class UserPreferences
     {
         private const string stockData = "true";
         public static bool isStockData

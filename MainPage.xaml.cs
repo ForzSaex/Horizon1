@@ -2,6 +2,7 @@
 using Microsoft.Maui.Controls.Xaml;
 using Microsoft.Maui.Layouts;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace Horizon
 {
@@ -13,7 +14,7 @@ namespace Horizon
             InitializeComponent();
             MainPageViewModel.MainPageViewModel mainPageViewModel = new MainPageViewModel.MainPageViewModel();
             BindingContext = mainPageViewModel;
-            CollectionView.ItemsSource = mainPageViewModel.Apps;
+            CollectionView.ItemsSource = mainPageViewModel.userApps;
 #endif
         }
     }

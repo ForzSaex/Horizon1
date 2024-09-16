@@ -7,7 +7,7 @@
     <ContentPage.Content>
         <CollectionView
             x:Name="CollectionView"
-            ItemsLayout="HorizontalGrid, 7"
+            ItemsLayout="HorizontalGrid, 9"
             >
             <CollectionView.ItemTemplate>
                 <DataTemplate>
